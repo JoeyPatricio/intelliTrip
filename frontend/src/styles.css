@@ -1,0 +1,123 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, system-ui, sans-serif;
+  background: #f7f8fb;
+  color: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+header {
+  margin-bottom: 24px;
+}
+
+h1 {
+  margin: 0 0 8px;
+}
+
+p {
+  margin: 0;
+}
+
+main {
+  display: grid;
+  gap: 24px;
+}
+
+.form-panel,
+.results-panel {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 80px rgba(32, 36, 51, 0.08);
+  padding: 24px;
+}
+
+form {
+  display: grid;
+  gap: 16px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+input,
+select {
+  border: 1px solid #d2d6db;
+  border-radius: 14px;
+  padding: 12px 16px;
+  width: 100%;
+}
+
+button {
+  background: #3b82f6;
+  border: none;
+  border-radius: 14px;
+  color: white;
+  cursor: pointer;
+  padding: 14px 20px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.day-card {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 18px;
+}
+
+.day-card:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.day-card h3 {
+  margin: 0 0 8px;
+}
+
+.day-card ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.day-card li {
+  margin-bottom: 14px;
+}
+
+.day-card li span {
+  color: #6b7280;
+}
+
+@media (min-width: 900px) {
+  main {
+    grid-template-columns: 1fr 1.3fr;
+  }
+}
