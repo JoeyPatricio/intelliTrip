@@ -107,61 +107,36 @@ async function generateOllamaItinerary(
   const placeCategories = await fetchCategorizedPlaces(destination.city);
   const placesPromptText = buildPlacesPromptText(destinationText, placeCategories);
 
-  const prompt = `
-You are a travel planning assistant with access to real destination information from a places API.
+  const prompt = `You are a travel planning assistant creating a detailed ${request.tripLength}-day itinerary for ${destinationText}.
 
-Here are real places in ${destinationText}:
+REQUIREMENTS:
+1. Generate EXACTLY ${request.tripLength} days (not more, not less)
+2. Each day must have EXACTLY ${activitiesPerDay} activities
+3. Return ONLY valid JSON, nothing else
+4. Use real places from the list provided below
+
+Real places in ${destinationText}:
 ${placesPromptText}
 
-STRICT RULES:
-- You MUST use these real places when generating the itinerary.
-- You may add other real places if needed, but only if they are actual venues.
-- DO NOT use generic phrases like "culture experience", "food experience", "outdoor activity", or "local attraction".
-- Each activity must include:
-  - time
-  - title (specific, includes place name)
-  - description
-  - location (actual place name)
-  - estimatedPrice (number)
-- Use real venue names for 'location', and make the 'title' clearly reference the same place.
-- Do NOT repeat the same major landmark, museum, palace, cruise, restaurant, or neighborhood experience on a later day (one visit per venue for the whole trip).
+Travel Details:
+- Trip length: ${request.tripLength} days
+- Interests: ${request.interests.join(", ")}
+- Travel style: ${request.travelStyle} (${activitiesPerDay} activities per day for this style)
+- Budget level: ${request.budget}
 
-CRITICAL — day count:
-- The "itinerary" array MUST contain exactly ${request.tripLength} objects: one per calendar day, with "day" running from 1 through ${request.tripLength}.
-- Do NOT return a single combined day. Do NOT omit days. If the trip is ${request.tripLength} days long, output ${request.tripLength} separate day entries with different activities.
-
-CRITICAL — activities per day for this travel style ("${request.travelStyle}"):
-- Each day object MUST include exactly ${activitiesPerDay} entries in its "activities" array (not fewer, not spread across days).
-- relaxed → 2 activities/day; packed → 4; luxury → 3; budget → 3.
-
-Return ONLY valid JSON in this exact format:
-
+STRICT JSON FORMAT - Return only this structure with NO additional text:
 {
   "itinerary": [
     {
       "day": 1,
-      "summary": "short summary",
+      "summary": "Day 1 highlights",
       "activities": [
         {
           "time": "09:00",
-          "title": "Visit Louvre Museum",
-          "description": "Explore famous artworks including the Mona Lisa",
-          "location": "Louvre Museum",
-          "estimatedPrice": 20,
-          "type": "activity"
-        }
-      ]
-    },
-    {
-      "day": 2,
-      "summary": "another day",
-      "activities": [
-        {
-          "time": "10:00",
-          "title": "Walk Seine riverbank",
-          "description": "Scenic stroll",
-          "location": "Seine",
-          "estimatedPrice": 0,
+          "title": "Activity name with venue",
+          "description": "Brief description of activity",
+          "location": "Specific venue name",
+          "estimatedPrice": 25,
           "type": "activity"
         }
       ]
@@ -169,13 +144,17 @@ Return ONLY valid JSON in this exact format:
   ]
 }
 
-Trip details:
-Destination: ${request.destinations[0].city}
-Days: ${request.tripLength} (you must output exactly this many day entries)
-Interests: ${request.interests.join(", ")}
-Travel Style: ${request.travelStyle}
+CRITICAL CHECKLIST:
+☐ Exactly ${request.tripLength} day objects in the itinerary array
+☐ Day numbers are: 1, 2, 3, ... ${request.tripLength}
+☐ Each day has EXACTLY ${activitiesPerDay} activities in the activities array
+☐ All times are in HH:MM format
+☐ All estimatedPrice values are numbers (not strings)
+☐ All locations are REAL places from the provided list
+☐ No generic phrases like "experience" or "local"
+☐ Valid JSON only - no extra text before or after
 
-If you cannot produce a valid itinerary that follows these rules, return an error message instead of fallback output.
+Generate the complete itinerary now:
 `;
 
   let itinerary: ItineraryDay[];
@@ -474,14 +453,14 @@ function parseItineraryPayload(raw: string): unknown[] {
   if (parsed && typeof parsed === 'object') {
     const obj = parsed as Record<string, unknown>;
     const candidate =
-      (Array.isArray(obj.itinerary) && obj.itinerary) ||
-      (Array.isArray(obj.days) && obj.days) ||
-      (Array.isArray(obj.plan) && obj.plan);
+      (Array.isArray(obj.itinerary) && obj.itinerary && obj.itinerary.length > 0 && obj.itinerary) ||
+      (Array.isArray(obj.days) && obj.days && obj.days.length > 0 && obj.days) ||
+      (Array.isArray(obj.plan) && obj.plan && obj.plan.length > 0 && obj.plan);
     if (candidate) {
       return candidate;
     }
   }
-  throw new Error('Ollama response did not include an itinerary array');
+  throw new Error(`Ollama response did not include an itinerary array. Received: ${raw.substring(0, 200)}`);
 }
 
 function parseJsonArray(raw: string): unknown {
@@ -491,6 +470,7 @@ function parseJsonArray(raw: string): unknown {
     // Fall through to extraction.
   }
 
+  // Try to find the first { and last } for object extraction
   const objectMatch = raw.match(/\{[\s\S]*\}/);
   if (objectMatch) {
     try {
@@ -500,12 +480,17 @@ function parseJsonArray(raw: string): unknown {
     }
   }
 
+  // Try to find the first [ and last ] for array extraction
   const arrayMatch = raw.match(/\[[\s\S]*\]/);
-  if (!arrayMatch) {
-    throw new Error('Could not find valid JSON in Ollama response');
+  if (arrayMatch) {
+    try {
+      return JSON.parse(arrayMatch[0]);
+    } catch {
+      // Continue to error below
+    }
   }
 
-  return JSON.parse(arrayMatch[0]);
+  throw new Error(`Could not find valid JSON in Ollama response: "${raw.substring(0, 150)}"`);
 }
 
 function parseActivitiesExtensionPayload(raw: string): unknown[] {
